@@ -41,19 +41,29 @@ app.use(express.urlencoded({ extended: true }));
 
 app.post('/api/shorturl', (req, res) => {
   let newUrl = req.body.url;
-  dns.lookup(url.parse(newUrl).hostname, (err, address, family) => {
-    if (err) return console.error(err);
-    const urlRecord = new URLs({url: newUrl});
-    urlRecord.save((err, insertedUrl) => {
-      if(err) return console.error(err);
-      res.json({"original_url": insertedUrl.url,"short_url": insertedUrl.id});
+  const checkUrl = url.parse(newUrl);
+  if(checkUrl.protocol == "ftp:") {
+    console.log(`error - protocol: ${checkUrl.protocol} hostname: ${checkUrl.hostname}`);
+    res.json({ error: 'invalid url' });
+  }
+  else {
+    dns.lookup(checkUrl.hostname, (err, address, family) => {
+      if (err) return res.json({ error: 'invalid url' });
+      else {
+        console.log(`ok - protocol: ${checkUrl.protocol} hostname: ${checkUrl.hostname}`);
+        const urlRecord = new URLs({url: newUrl});
+        urlRecord.save((err, insertedUrl) => {
+          if(err) return console.error(err);
+          res.json({"original_url": insertedUrl.url,"short_url": insertedUrl.id});
+        });
+      }
     });
-  });
+  }
 });
 
 app.get('/api/shorturl/:url', (req, res) => {
   let searchUrl = req.params.url;
-  URLs.find({_id: searchUrl}, (err, urlFound) => {
+  URLs.findById(searchUrl, (err, urlFound) => {
     if (err) return console.error(err);
     res.redirect(urlFound.url);
   });
